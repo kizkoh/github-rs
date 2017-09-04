@@ -1,13 +1,13 @@
 // Tokio/Future Imports
-use futures::{ Future, Stream };
+use futures::{Future, Stream};
 use futures::future::ok;
 use tokio_core::reactor::Core;
 
 // Hyper Imports
-use hyper::{ self, Body, Headers, Uri, Method };
-use hyper::client::{ Client, Request };
-use hyper::header::{ Header, Authorization, Accept, ContentType,
-                     ETag, IfNoneMatch, UserAgent, qitem };
+use hyper::{self, Body, Headers, Uri, Method};
+use hyper::client::{Client, Request};
+use hyper::header::{Header, Authorization, Accept, ContentType, ETag, IfNoneMatch, UserAgent,
+                    qitem};
 use hyper::mime::Mime;
 use hyper::StatusCode;
 use hyper_rustls::HttpsConnector;
@@ -19,6 +19,7 @@ use serde_json;
 
 // Internal Library Imports
 use users;
+use notifications;
 use misc;
 use repos;
 use errors::*;
@@ -68,7 +69,8 @@ exec!(CustomQuery);
 
 pub trait Executor {
     fn execute<T>(self) -> Result<(Headers, StatusCode, Option<T>)>
-        where T: DeserializeOwned;
+    where
+        T: DeserializeOwned;
 }
 
 impl Github {
@@ -76,11 +78,13 @@ impl Github {
     /// an &str (`String` or `Vec<u8>` for example). As long as the function is
     /// given a valid API Token your requests will work.
     pub fn new<T>(token: T) -> Result<Self>
-        where T: ToString {
+    where
+        T: ToString,
+    {
         let core = Core::new()?;
         let handle = core.handle();
         let client = Client::configure()
-            .connector(HttpsConnector::new(4,&handle))
+            .connector(HttpsConnector::new(4, &handle))
             .build(&handle);
         Ok(Self {
             token: token.to_string(),
@@ -97,7 +101,9 @@ impl Github {
     /// Change the currently set Authorization Token using a type that can turn
     /// into an &str. Must be a valid API Token for requests to work.
     pub fn set_token<T>(&mut self, token: T)
-        where T: ToString {
+    where
+        T: ToString,
+    {
         self.token = token.to_string();
     }
 
@@ -134,7 +140,9 @@ impl Github {
 
     /// Begin building up a PUT request with data to GitHub
     pub fn put<T>(&self, body: T) -> PutQueryBuilder
-        where T: Serialize {
+    where
+        T: Serialize,
+    {
         let mut qb: PutQueryBuilder = self.into();
         if let Ok(mut qbr) = qb.request {
             let serialized = serde_json::to_vec(&body);
@@ -142,7 +150,7 @@ impl Github {
                 Ok(json) => {
                     qbr.get_mut().set_body(json);
                     qb.request = Ok(qbr);
-                },
+                }
                 Err(_) => {
                     qb.request = Err("Unable to serialize data to JSON".into());
                 }
@@ -153,7 +161,9 @@ impl Github {
 
     /// Begin building up a POST request with data to GitHub
     pub fn post<T>(&self, body: T) -> PostQueryBuilder
-        where T: Serialize {
+    where
+        T: Serialize,
+    {
         let mut qb: PostQueryBuilder = self.into();
         if let Ok(mut qbr) = qb.request {
             let serialized = serde_json::to_vec(&body);
@@ -161,7 +171,7 @@ impl Github {
                 Ok(json) => {
                     qbr.get_mut().set_body(json);
                     qb.request = Ok(qbr);
-                },
+                }
                 Err(_) => {
                     qb.request = Err("Unable to serialize data to JSON".into());
                 }
@@ -173,7 +183,9 @@ impl Github {
 
     /// Begin building up a PATCH request with data to GitHub
     pub fn patch<T>(&self, body: T) -> PatchQueryBuilder
-        where T: Serialize {
+    where
+        T: Serialize,
+    {
         let mut qb: PatchQueryBuilder = self.into();
         if let Ok(mut qbr) = qb.request {
             let serialized = serde_json::to_vec(&body);
@@ -181,7 +193,7 @@ impl Github {
                 Ok(json) => {
                     qbr.get_mut().set_body(json);
                     qb.request = Ok(qbr);
-                },
+                }
                 Err(_) => {
                     qb.request = Err("Unable to serialize data to JSON".into());
                 }
@@ -192,7 +204,9 @@ impl Github {
 
     /// Begin building up a DELETE request with data to GitHub
     pub fn delete<T>(&self, body: T) -> DeleteQueryBuilder
-        where T: Serialize {
+    where
+        T: Serialize,
+    {
         let mut qb: DeleteQueryBuilder = self.into();
 
         if let Ok(mut qbr) = qb.request {
@@ -201,7 +215,7 @@ impl Github {
                 Ok(json) => {
                     qbr.get_mut().set_body(json);
                     qb.request = Ok(qbr);
-                },
+                }
                 Err(_) => {
                     qb.request = Err("Unable to serialize data to JSON".into());
                 }
@@ -214,10 +228,9 @@ impl Github {
     pub fn delete_empty(&self) -> DeleteQueryBuilder {
         self.into()
     }
-
 }
 
-impl <'g> GetQueryBuilder<'g> {
+impl<'g> GetQueryBuilder<'g> {
     /// Pass in an endpoint not covered by the API in the form of the following:
     ///
     /// ```no_test
@@ -248,6 +261,9 @@ impl <'g> GetQueryBuilder<'g> {
     /// Query the rate limit endpoint
     func_client!(rate_limit, misc::get::RateLimit<'g>);
 
+    /// Query the notifications endpoint
+    func_client!(notifications, notifications::get::Notifications<'g>);
+
     /// Query the user endpoint
     func_client!(user, users::get::User<'g>);
 
@@ -271,7 +287,9 @@ impl <'g> GetQueryBuilder<'g> {
         match self.request {
             Ok(mut req) => {
                 let ETag(tag) = tag;
-                req.get_mut().headers_mut().set(IfNoneMatch::Items(vec![tag]));
+                req.get_mut().headers_mut().set(
+                    IfNoneMatch::Items(vec![tag]),
+                );
                 self.request = Ok(req);
                 self
             }
@@ -280,7 +298,7 @@ impl <'g> GetQueryBuilder<'g> {
     }
 }
 
-impl <'g> PutQueryBuilder<'g> {
+impl<'g> PutQueryBuilder<'g> {
     /// Pass in an endpoint not covered by the API in the form of the following:
     ///
     /// ```no_test
@@ -300,7 +318,9 @@ impl <'g> PutQueryBuilder<'g> {
         match self.request {
             Ok(mut req) => {
                 let ETag(tag) = tag;
-                req.get_mut().headers_mut().set(IfNoneMatch::Items(vec![tag]));
+                req.get_mut().headers_mut().set(
+                    IfNoneMatch::Items(vec![tag]),
+                );
                 self.request = Ok(req);
                 self
             }
@@ -309,7 +329,7 @@ impl <'g> PutQueryBuilder<'g> {
     }
 }
 
-impl <'g> DeleteQueryBuilder<'g> {
+impl<'g> DeleteQueryBuilder<'g> {
     /// Pass in an endpoint not covered by the API in the form of the following:
     ///
     /// ```no_test
@@ -329,7 +349,9 @@ impl <'g> DeleteQueryBuilder<'g> {
         match self.request {
             Ok(mut req) => {
                 let ETag(tag) = tag;
-                req.get_mut().headers_mut().set(IfNoneMatch::Items(vec![tag]));
+                req.get_mut().headers_mut().set(
+                    IfNoneMatch::Items(vec![tag]),
+                );
                 self.request = Ok(req);
                 self
             }
@@ -338,7 +360,7 @@ impl <'g> DeleteQueryBuilder<'g> {
     }
 }
 
-impl <'g> PostQueryBuilder<'g> {
+impl<'g> PostQueryBuilder<'g> {
     /// Pass in an endpoint not covered by the API in the form of the following:
     ///
     /// ```no_test
@@ -359,16 +381,18 @@ impl <'g> PostQueryBuilder<'g> {
         match self.request {
             Ok(mut req) => {
                 let ETag(tag) = tag;
-                req.get_mut().headers_mut().set(IfNoneMatch::Items(vec![tag]));
+                req.get_mut().headers_mut().set(
+                    IfNoneMatch::Items(vec![tag]),
+                );
                 self.request = Ok(req);
                 self
-            },
+            }
             Err(_) => self,
         }
     }
 }
 
-impl <'g> PatchQueryBuilder<'g> {
+impl<'g> PatchQueryBuilder<'g> {
     /// Pass in an endpoint not covered by the API in the form of the following:
     ///
     /// ```no_test
@@ -383,12 +407,17 @@ impl <'g> PatchQueryBuilder<'g> {
     func_client!(user, users::patch::User<'g>);
     func_client!(gists, gists::patch::Gists<'g>);
 
+    /// Query the notifications endpoint
+    func_client!(notifications, notifications::patch::Notifications<'g>);
+
     /// Add an etag to the headers of the request
     pub fn set_etag(mut self, tag: ETag) -> Self {
         match self.request {
             Ok(mut req) => {
                 let ETag(tag) = tag;
-                req.get_mut().headers_mut().set(IfNoneMatch::Items(vec![tag]));
+                req.get_mut().headers_mut().set(
+                    IfNoneMatch::Items(vec![tag]),
+                );
                 self.request = Ok(req);
                 self
             }
@@ -426,12 +455,10 @@ from!(
        => CustomQuery
 );
 
-impl<'a> CustomQuery<'a>
-{
+impl<'a> CustomQuery<'a> {
     /// Set custom header for request.
     /// Useful for custom headers (sometimes using in api preview).
-    pub fn set_header<H : Header>(mut self, accept_header: H) -> Self
-    {
+    pub fn set_header<H: Header>(mut self, accept_header: H) -> Self {
         match self.request {
             Ok(mut req) => {
                 req.get_mut().headers_mut().set(accept_header);
