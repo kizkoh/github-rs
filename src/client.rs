@@ -181,6 +181,11 @@ impl Github {
         qb
     }
 
+    /// Begin building up a PATCH request with no data to GitHub
+    pub fn patch_empty(&self) -> PatchQueryBuilder {
+        self.into()
+    }
+
     /// Begin building up a PATCH request with data to GitHub
     pub fn patch<T>(&self, body: T) -> PatchQueryBuilder
     where
